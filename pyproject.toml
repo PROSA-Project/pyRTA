@@ -1,0 +1,43 @@
+[project]
+name = "response-time-analysis"
+version = "0.1.0"
+description = "An implementation of the response-time analyses (RTAs) verified by the PROSA project"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+]
+readme = "README.md"
+authors = [
+    { name = "Björn Brandenburg", email = "bbb@mpi-sws.org" }
+]
+requires-python = ">=3.10"
+dependencies = []
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://prosa.mpi-sws.org"
+Repository = "https://gitlab.mpi-sws.org/RT-PROOFS/pyRTA.git"
+Issues = "https://gitlab.mpi-sws.org/RT-PROOFS/pyRTA/-/issues"
+
+
+[build-system]
+requires = ["uv_build>=0.9.22,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.37.1",
+    "pytest>=9.0.2",
+    "ruff>=0.14.11",
+]

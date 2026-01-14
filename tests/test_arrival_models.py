@@ -83,3 +83,72 @@ def test_arrival_curve_prefix_counts_across_windows() -> None:
     assert am.max_arrivals(191) == 8
     assert am.max_arrivals(200) == 8
     assert am.max_arrivals(201) == 9
+
+
+def test_periodic_as_arrival_curve_prefix_equivalence() -> None:
+    am = Periodic(period=5)
+
+    prefix = am.as_arrival_curve_prefix()
+
+    assert prefix.horizon == 5
+    assert prefix.ac_steps == [(1, 1)]
+    for delta in range(26):
+        assert prefix.max_arrivals(delta) == am.max_arrivals(delta)
+
+
+def test_sporadic_as_arrival_curve_prefix_equivalence() -> None:
+    am = Sporadic(mit=4)
+
+    prefix = am.as_arrival_curve_prefix()
+
+    assert prefix.horizon == 4
+    assert prefix.ac_steps == [(1, 1)]
+    for delta in range(26):
+        assert prefix.max_arrivals(delta) == am.max_arrivals(delta)
+
+
+def test_periodic_with_jitter_as_arrival_curve_prefix_default_horizon() -> None:
+    am = PeriodicWithJitter(period=5, jitter=2)
+
+    prefix = am.as_arrival_curve_prefix()
+
+    assert prefix.horizon == 50
+    assert prefix.ac_steps == [
+        (1, 1),
+        (4, 2),
+        (9, 3),
+        (14, 4),
+        (19, 5),
+        (24, 6),
+        (29, 7),
+        (34, 8),
+        (39, 9),
+        (44, 10),
+        (49, 11),
+    ]
+    for delta in range(51):
+        assert prefix.max_arrivals(delta) == am.max_arrivals(delta)
+
+
+def test_minimum_separation_vector_as_arrival_curve_prefix() -> None:
+    am = MinimumSeparationVector(dmin=[2, 5, 9, 14, 20, 26])
+
+    prefix = am.as_arrival_curve_prefix()
+
+    assert prefix.horizon == 26
+    assert prefix.ac_steps == [
+        (1, 1),
+        (3, 2),
+        (6, 3),
+        (10, 4),
+        (15, 5),
+        (21, 6),
+    ]
+    for delta in range(26):
+        assert prefix.max_arrivals(delta) == am.max_arrivals(delta)
+
+
+def test_arrival_curve_prefix_as_arrival_curve_prefix_noop() -> None:
+    ac = ArrivalCurvePrefix(horizon=100, ac_steps=[(1, 1)])
+
+    assert ac.as_arrival_curve_prefix(50) is ac

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
-from itertools import chain, count, dropwhile
+from itertools import chain, count, dropwhile, takewhile
 from math import ceil
 from typing import TypeAlias
 
@@ -38,6 +38,12 @@ class Periodic:
 
         return count(0, self.period)
 
+    def as_arrival_curve_prefix(
+        self, _horizon: Duration | None = None
+    ) -> ArrivalCurvePrefix:
+        """Return an equivalent arrival-curve prefix."""
+        return ArrivalCurvePrefix(horizon=self.period, ac_steps=[(1, 1)])
+
 
 @dataclass(frozen=True)
 class PeriodicWithJitter:
@@ -71,6 +77,20 @@ class PeriodicWithJitter:
         filtered = dropwhile(lambda delta: delta <= 0, raw_steps)
         return chain([0], filtered)
 
+    def as_arrival_curve_prefix(
+        self, horizon: Duration | None = None
+    ) -> ArrivalCurvePrefix:
+        """Return an approximated arrival-curve prefix."""
+        if horizon is None:
+            horizon = max(self.jitter, self.period) * 10
+        return ArrivalCurvePrefix(
+            horizon=horizon,
+            ac_steps=[
+                (s + 1, self(s + 1))
+                for s in takewhile(lambda s: s + 1 < horizon, self.steps())
+            ],
+        )
+
 
 @dataclass(frozen=True)
 class Sporadic:
@@ -98,6 +118,12 @@ class Sporadic:
         max_arrivals(delta) != max_arrivals(delta + 1)"""
 
         return count(0, self.mit)
+
+    def as_arrival_curve_prefix(
+        self, _horizon: Duration | None = None
+    ) -> ArrivalCurvePrefix:
+        """Return an equivalent arrival-curve prefix."""
+        return ArrivalCurvePrefix(horizon=self.mit, ac_steps=[(1, 1)])
 
 
 @dataclass(frozen=True)
@@ -173,6 +199,20 @@ class MinimumSeparationVector:
                 yield gap
                 last_yielded = gap
 
+    def as_arrival_curve_prefix(
+        self, horizon: Duration | None = None
+    ) -> ArrivalCurvePrefix:
+        """Return an approximated arrival-curve prefix."""
+        if horizon is None:
+            horizon = self.max_covered_delta
+        return ArrivalCurvePrefix(
+            horizon=horizon,
+            ac_steps=[
+                (s + 1, self(s + 1))
+                for s in takewhile(lambda s: s + 1 < horizon, self.steps())
+            ],
+        )
+
 
 @dataclass(frozen=True)
 class ArrivalCurvePrefix:
@@ -243,6 +283,12 @@ class ArrivalCurvePrefix:
             window_start = window * self.horizon
             for delta, _job_count in self.ac_steps:
                 yield window_start + delta - EPSILON_TIME
+
+    def as_arrival_curve_prefix(
+        self, _horizon: Duration | None = None
+    ) -> ArrivalCurvePrefix:
+        "No-op; returns itself."
+        return self
 
 
 ArrivalModel: TypeAlias = (

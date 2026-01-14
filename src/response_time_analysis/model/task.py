@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import overload
+
+from response_time_analysis.model.time import Duration
 
 from .arrival import ArrivalModel
 from .execution import CostModel, PreemptionModel
@@ -34,6 +36,10 @@ class Task:
             return DemandBoundFunction(self.rbf, self.deadline)
         else:
             return None
+
+    def with_arrival_curve_prefix(self, horizon: Duration | None = None) -> Task:
+        "Return a copy of the task with the arrival model replaced by an arrival-curve prefix."
+        return replace(self, arrivals=self.arrivals.as_arrival_curve_prefix(horizon))
 
 
 def deadline_parameter_missing():
@@ -143,6 +149,11 @@ class TaskSet:
 
     def excluding_iter(self, excluded: Task) -> Iterator[Task]:
         return (t for t in self.tasks if t != excluded)
+
+    def with_arrival_curves(self, horizon: Duration | None = None) -> TaskSet:
+        """Return a copy of the task set with all arrival models replaced by equivalent
+        or approximated arrival-curve prefixes."""
+        return TaskSet(tuple(t.with_arrival_curve_prefix(horizon) for t in self.tasks))
 
 
 @overload

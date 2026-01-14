@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.1.1] - 2026-01-14
 
 ### Changed
 - When analyzing POET's extended search spaces, ensure that every solution satisfies A<=F, as the current version of POET has this requirement hard-coded on the PROSA side. This special case will be removed again once the POET certificates are modernized. 

@@ -1,3 +1,5 @@
+# pyright: reportConstantRedefinition=false
+
 from collections.abc import Iterator
 from itertools import dropwhile
 
@@ -232,12 +234,23 @@ def rta(
             - task_under_analysis.execution.run_to_completion_threshold
         )
 
-        F = solve.inequality(
-            lhs=lambda F: bb + tua_work + hep_bound(F),
-            rhs=supply,
-            start=bb + tua_work,
-            horizon=horizon,
-        )
+        if use_poet_search_space:
+            # POET requires A<=F, so force this here. In the longterm, this
+            # special case should be eliminated as it matters only for points that
+            # are in POET's over-approximated search space, but not in the actual search space.
+            F = solve.inequality(
+                lhs=lambda F: max(A, bb + tua_work + hep_bound(F)),
+                rhs=supply,
+                start=bb + tua_work,
+                horizon=horizon,
+            )
+        else:
+            F = solve.inequality(
+                lhs=lambda F: bb + tua_work + hep_bound(F),
+                rhs=supply,
+                start=bb + tua_work,
+                horizon=horizon,
+            )
         if F is None:
             return (A, None, None)
 

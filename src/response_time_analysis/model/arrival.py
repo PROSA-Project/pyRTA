@@ -160,8 +160,11 @@ class MinimumSeparationVector:
     def extrapolate(self):
         n = self.max_covered_njobs + 1
         dmin_for_n = max(
-            self.min_gap_between(i) + self.min_gap_between(n - i + 1)
-            for i in range(2, self.max_covered_njobs // 2)
+            (
+                self.min_gap_between(i) + self.min_gap_between(n - i + 1)
+                for i in range(2, self.max_covered_njobs // 2)
+            ),
+            default=self.dmin[0] * (n - 1),
         )
         self.dmin.append(dmin_for_n)
 

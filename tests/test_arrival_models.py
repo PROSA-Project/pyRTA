@@ -1,3 +1,5 @@
+from itertools import islice
+
 from response_time_analysis.model import (
     ArrivalCurvePrefix,
     MinimumSeparationVector,
@@ -94,6 +96,18 @@ def test_periodic_as_arrival_curve_prefix_equivalence() -> None:
     assert prefix.ac_steps == [(1, 1)]
     for delta in range(26):
         assert prefix.max_arrivals(delta) == am.max_arrivals(delta)
+
+
+def test_periodic_delta_min_equivalence() -> None:
+    am = Periodic(period=5)
+
+    am_dmin = MinimumSeparationVector([5])
+
+    for delta in range(26):
+        assert am_dmin(delta) == am(delta)
+
+    for s_dmin, s in islice(zip(am_dmin.steps(), am.steps()), 10):
+        assert s_dmin == s
 
 
 def test_sporadic_as_arrival_curve_prefix_equivalence() -> None:

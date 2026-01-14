@@ -12,6 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - Added `as_arrival_curve_prefix()` to the arrival-model interface to obtain arrival-curve prefixes, plus `Task` and `TaskSet` helpers to convert arrivals to arrival-curve prefixes.
 
+### Fixed
+- Don't crash on empty `max()` in `MinimumSeparationVector::extrapolate()` when `len(dmin) == 1`.
+
 ## [0.1.0] - 2026-01-13
 
 First public release

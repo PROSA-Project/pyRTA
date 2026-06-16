@@ -3,12 +3,14 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import chain, count, dropwhile, takewhile
-from math import ceil
+from math import ceil, inf
 from typing import TypeAlias
 
 from .time import EPSILON_TIME, Duration
 
 JobCount: TypeAlias = int
+
+INFINITY = inf
 
 
 @dataclass(frozen=True)
@@ -223,7 +225,7 @@ class ArrivalCurvePrefix:
     expressed as a list of steps of the arrival curve up to a given horizon."""
 
     # Horizon of the given arrival-curve prefix.
-    horizon: Duration
+    horizon: Duration | float
     # The steps of the eta-max curve up to the horizon.
     # A tuple (δ, c) ∈ ac_steps means
     # α(δ) = c and ∀ δ' < δ,  α(δ) < c.
@@ -233,6 +235,8 @@ class ArrivalCurvePrefix:
     def __post_init__(self) -> None:
         if self.horizon <= 0:
             raise ValueError("horizon must be positive")
+        if isinstance(self.horizon, float) and self.horizon is not INFINITY:
+            raise ValueError("horizon must be integral or infinity")
         if len(self.ac_steps) == 0:
             raise ValueError("ac_steps must not be empty")
         if self.ac_steps[0][0] != EPSILON_TIME:
@@ -245,7 +249,9 @@ class ArrivalCurvePrefix:
             if delta >= self.horizon:
                 raise ValueError("ac_steps must lie within the given horizon")
             if jobs <= last_jobs:
-                raise ValueError("ac_steps must be increasing in job count")
+                # check for the special case of an "empty" curve
+                if (delta, jobs) != (1, 0):
+                    raise ValueError("ac_steps must be increasing in job count")
             last_delta = delta
             last_jobs = jobs
 
@@ -273,19 +279,29 @@ class ArrivalCurvePrefix:
         # This uses a "fast extrapolation" technique that avoids more costly
         # curve extrapolation as in the delta-min-based ArrivalCurve implementation.
 
-        full_windows = delta // self.horizon
-        offset = delta % self.horizon
-        jobs_in_last_window = self.max_arrivals_within_horizon(offset)
+        if isinstance(self.horizon, Duration):
+            full_windows = delta // self.horizon
+            offset = delta % self.horizon
+            jobs_in_last_window = self.max_arrivals_within_horizon(offset)
+        else:
+            # special case for "infinity"
+            full_windows = 0
+            jobs_in_last_window = self.max_arrivals_within_horizon(delta)
 
         return full_windows * self.ac_steps[-1][1] + jobs_in_last_window
 
     def steps(self) -> Iterator[Duration]:
         """Iterator yielding values of delta such that
         max_arrivals(delta) != max_arrivals(delta + 1)"""
-        for window in count(0):
-            window_start = window * self.horizon
+        if isinstance(self.horizon, Duration):
+            for window in count(0):
+                window_start = window * self.horizon
+                for delta, _job_count in self.ac_steps:
+                    yield window_start + delta - EPSILON_TIME
+        else:
+            # special case for "infinity"
             for delta, _job_count in self.ac_steps:
-                yield window_start + delta - EPSILON_TIME
+                yield delta
 
     def as_arrival_curve_prefix(
         self, _horizon: Duration | None = None
@@ -294,10 +310,60 @@ class ArrivalCurvePrefix:
         return self
 
 
+@dataclass(frozen=True)
+class Once:
+    "Special case: A task that is activated exactly once."
+
+    def __call__(self, delta: Duration) -> JobCount:
+        r"Upper arrival curve $\alpha^+(\delta)$"
+        return self.max_arrivals(delta)
+
+    def max_arrivals(self, delta: Duration) -> JobCount:
+        r"Upper arrival curve $\alpha^+(\delta)$"
+        return 0 if delta <= 0 else 1
+
+    def steps(self) -> Iterator[Duration]:
+        """Iterator yielding values of delta such that
+        max_arrivals(delta) != max_arrivals(delta + 1)"""
+        yield 0
+
+    def as_arrival_curve_prefix(
+        self, _horizon: Duration | None = None
+    ) -> ArrivalCurvePrefix:
+        """Return an equivalent arrival-curve prefix."""
+        return ArrivalCurvePrefix(horizon=INFINITY, ac_steps=[(1, 1)])
+
+
+@dataclass(frozen=True)
+class Never:
+    "Special case: A task that is never activated."
+
+    def __call__(self, delta: Duration) -> JobCount:
+        r"Upper arrival curve $\alpha^+(\delta)$"
+        return self.max_arrivals(delta)
+
+    def max_arrivals(self, _delta: Duration) -> JobCount:
+        r"Upper arrival curve $\alpha^+(\delta)$"
+        return 0
+
+    def steps(self) -> Iterator[Duration]:
+        """Iterator yielding values of delta such that
+        max_arrivals(delta) != max_arrivals(delta + 1)"""
+        return iter([])
+
+    def as_arrival_curve_prefix(
+        self, _horizon: Duration | None = None
+    ) -> ArrivalCurvePrefix:
+        """Return an equivalent arrival-curve prefix."""
+        return ArrivalCurvePrefix(horizon=INFINITY, ac_steps=[(1, 0)])
+
+
 ArrivalModel: TypeAlias = (
     Periodic
     | PeriodicWithJitter
     | Sporadic
     | MinimumSeparationVector
     | ArrivalCurvePrefix
+    | Once
+    | Never
 )

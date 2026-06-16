@@ -1,12 +1,43 @@
+import math
 from itertools import islice
 
 from response_time_analysis.model import (
     ArrivalCurvePrefix,
     MinimumSeparationVector,
+    Never,
+    Once,
     Periodic,
     PeriodicWithJitter,
     Sporadic,
 )
+
+
+def test_arrives_once() -> None:
+    am = Once()
+
+    assert am.max_arrivals(-1) == 0
+    assert am.max_arrivals(0) == 0
+    assert am.max_arrivals(1) == 1
+    assert am.max_arrivals(5) == 1
+    assert am.max_arrivals(6) == 1
+    assert am.max_arrivals(15) == 1
+    assert am.max_arrivals(16) == 1
+
+    assert list(am.steps()) == [0]
+
+
+def test_arrives_never() -> None:
+    am = Never()
+
+    assert am.max_arrivals(-1) == 0
+    assert am.max_arrivals(0) == 0
+    assert am.max_arrivals(1) == 0
+    assert am.max_arrivals(5) == 0
+    assert am.max_arrivals(6) == 0
+    assert am.max_arrivals(15) == 0
+    assert am.max_arrivals(16) == 0
+
+    assert list(am.steps()) == []
 
 
 def test_periodic_arrivals_counts() -> None:
@@ -118,6 +149,28 @@ def test_sporadic_as_arrival_curve_prefix_equivalence() -> None:
     assert prefix.horizon == 4
     assert prefix.ac_steps == [(1, 1)]
     for delta in range(26):
+        assert prefix.max_arrivals(delta) == am.max_arrivals(delta)
+
+
+def test_once_as_arrival_curve_prefix_equivalence() -> None:
+    am = Once()
+
+    prefix = am.as_arrival_curve_prefix()
+
+    assert prefix.horizon is math.inf
+    assert prefix.ac_steps == [(1, 1)]
+    for delta in range(128):
+        assert prefix.max_arrivals(delta) == am.max_arrivals(delta)
+
+
+def test_never_as_arrival_curve_prefix_equivalence() -> None:
+    am = Never()
+
+    prefix = am.as_arrival_curve_prefix()
+
+    assert prefix.horizon is math.inf
+    assert prefix.ac_steps == [(1, 0)]
+    for delta in range(128):
         assert prefix.max_arrivals(delta) == am.max_arrivals(delta)
 
 

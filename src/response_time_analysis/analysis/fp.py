@@ -76,7 +76,9 @@ def round_to_horizon(tsk: Task, L: Duration) -> Duration:
     For tasks that use an ArrivalCurvePrefix, "round up" the given busy-window bound
     to the next integral multiple of the arrival-curve prefix's horizon.
     """
-    if isinstance(tsk.arrivals, ArrivalCurvePrefix):
+    if isinstance(tsk.arrivals, ArrivalCurvePrefix) and isinstance(
+        tsk.arrivals.horizon, Duration
+    ):
         return ((L // tsk.arrivals.horizon) + 1) * tsk.arrivals.horizon
     else:
         return L

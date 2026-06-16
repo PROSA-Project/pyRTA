@@ -20,52 +20,13 @@ from response_time_analysis.model import (
 from . import Solution, solve, sparse_finite_search_space
 
 
-def busy_window_bound_nps(all_tasks: TaskSet, task_under_analysis: Task) -> Duration:
-    """A bound on the length of a busy interval that starts with priority inversion
-    (w.r.t. a job of a given task under analysis) under the EDF scheduling policy."""
-
-    def lp_interference(tsk_lp: Task) -> Work:
-        return tsk_lp.execution.max_non_preemptive_segment - EPSILON_TIME
-
-    def hep_interference(tsk_lp: Task) -> Work:
-        dl_lp = deadline_of(tsk_lp).value
-        return sum(
-            tsk_hp.rbf(dl_lp - deadline_of(tsk_hp).value)
-            for tsk_hp in all_tasks.with_deadline_at_most_iter(tsk_lp)
-        )
-
-    return max(
-        (
-            lp_interference(t) + hep_interference(t)
-            for t in all_tasks.with_deadline_greater_than_iter(task_under_analysis)
-        ),
-        default=0,
-    )
-
-
-def busy_window_bound_rbf(
-    all_tasks: TaskSet,
-    supply: SupplyModel,
-    horizon: Duration | None = None,
-) -> Duration | None:
-    return solve.inequality(lhs=all_tasks.rbf, rhs=supply, horizon=horizon)
-
-
 def busy_window_bound(
     all_tasks: TaskSet,
-    task_under_analysis: Task,
     supply: SupplyModel,
     horizon: Duration | None = None,
 ) -> Duration | None:
     "A bound on the length of the busy window of any job of the task under analysis."
-    if isinstance(supply, IdealProcessor):
-        # On an ideal uniprocessor without supply restrictions,
-        # we can be less pessimistic about the blocking bound.
-        return busy_window_bound_rbf(all_tasks, supply, horizon)
-    else:
-        bw_nps = busy_window_bound_nps(all_tasks, task_under_analysis)
-        bw_rbf = busy_window_bound_rbf(all_tasks, supply, horizon)
-        return max(bw_nps, bw_rbf) if bw_rbf is not None else None
+    return solve.inequality(lhs=all_tasks.rbf, rhs=supply, horizon=horizon)
 
 
 # This is a good candidate for an LRU cache.
@@ -158,11 +119,7 @@ def search_space(
 ) -> Iterator[Duration] | None:
     "The finite, sparse search space for EDF RTA."
 
-    L = (
-        busy_window_bound(all_tasks, task_under_analysis, supply, horizon)
-        if bw_bound is None
-        else bw_bound
-    )
+    L = busy_window_bound(all_tasks, supply, horizon) if bw_bound is None else bw_bound
 
     return sparse_finite_search_space(
         points_of_interest(all_tasks, task_under_analysis, supply), L
@@ -269,7 +226,7 @@ def rta(
         return (A, F, max(0, AR - A, F - A)) if AR is not None else (A, F, None)
 
     # second, try to obtain the search space of relevant offsets
-    L = busy_window_bound(all_tasks, task_under_analysis, supply, horizon)
+    L = busy_window_bound(all_tasks, supply, horizon)
     if L is None:
         return Solution.no_search_space_found(all_tasks, task_under_analysis)
 

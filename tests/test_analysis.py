@@ -126,9 +126,7 @@ def test_edf_analysis_offsets_and_response_time_simple() -> None:
     )
     ts = taskset(tua, lp)
 
-    assert edf.busy_window_bound_nps(ts, tua) == 5
-    assert edf.busy_window_bound_rbf(ts, supply) == 8
-    assert edf.busy_window_bound(ts, tua, supply) == 8
+    assert edf.busy_window_bound(ts, supply) == 8
     assert list(edf.blocking_bound_steps(ts, tua)) == [2]
 
     poi = steps_up_to(edf.points_of_interest(ts, tua, supply), limit=15)
